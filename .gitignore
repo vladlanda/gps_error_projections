@@ -1,0 +1,12 @@
+Application
+CLK
+ION
+netCDF
+OUT
+RNX
+SP3
+.netrc
+*.pk
+*.log
+tests.ipynb
+download.py
