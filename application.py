@@ -398,13 +398,13 @@ class MainWindow(QMainWindow):
                 # z_err = yearly_dataarray.loc[keyAgency,'up'].mean('date').data
                 # z_std = yearly_dataarray.loc[keyAgency,'up'].std('date').data
 
-                xy_err = yearly_dataarray.loc[keyAgency,['north','east']].mean('date').interpolate_na(dim="time(s)", method="linear").data
-                xy_std = yearly_dataarray.loc[keyAgency,['north','east']].std('date').interpolate_na(dim="time(s)", method="linear").data
+                xy_err = yearly_dataarray.loc[keyAgency,['north','east']].interpolate_na(dim="time(s)", method="linear").mean('date').data
+                xy_var = yearly_dataarray.loc[keyAgency,['north','east']].interpolate_na(dim="time(s)", method="linear").var('date').data
 
                 xy_err_original = yearly_dataarray.loc[keyAgency,['north','east']].mean('date').data
 
-                z_err = yearly_dataarray.loc[keyAgency,'up'].mean('date').interpolate_na(dim="time(s)", method="linear").data
-                z_std = yearly_dataarray.loc[keyAgency,'up'].std('date').interpolate_na(dim="time(s)", method="linear").data
+                z_err = yearly_dataarray.loc[keyAgency,'up'].interpolate_na(dim="time(s)", method="linear").mean('date').data
+                z_var = yearly_dataarray.loc[keyAgency,'up'].interpolate_na(dim="time(s)", method="linear").var('date').data
 
                 z_err_original = yearly_dataarray.loc[keyAgency,'up'].mean('date').data
                 
@@ -415,22 +415,53 @@ class MainWindow(QMainWindow):
                 # xy_err = self.data[[0,2],:]
                 # xy_std = self.data[[1,3],:]
 
-                xy_upp = xy_err + 2*xy_std
-                xy_low = xy_err - 2*xy_std
-                z_upp = z_err + 2*z_std
-                z_low = z_err - 2*z_std
+                xy_upp = xy_err + 2*xy_var**.5
+                xy_low = xy_err - 2*xy_var**.5
+                z_upp = z_err + 2*z_var**.5
+                z_low = z_err - 2*z_var**.5
 
                 '''Polar plot'''
-                polar_mean = -(self.cossin.T @ xy_err)[:,horizontal_slider_value] + z_err[horizontal_slider_value]
-                polar_upp =  -(self.cossin.T @ xy_upp)[:,horizontal_slider_value] + z_upp[horizontal_slider_value]
-                polar_low =  -(self.cossin.T @ xy_low)[:,horizontal_slider_value] + z_low[horizontal_slider_value]
+                def project_xy_error(north_east_arr):
+                    arr_t = north_east_arr.transpose((1,0,-1))
+                    trigo = np.repeat(np.expand_dims(self.cossin.T,axis=0),arr_t.shape[0],axis=0)
+                    _prod = -(trigo @ arr_t)
+                    _mean = np.mean(_prod,axis=0)
+                    _var = np.var(_prod,axis=0)
+                    return _prod,_mean,_var
+                
+                north_east_arr = yearly_dataarray.loc[keyAgency,['north','east']].interpolate_na(dim="time(s)", method="linear",fill_value="extrapolate").data
+                _prod,_mean,_var = project_xy_error(north_east_arr)
 
-                self.axes.plot(self.theta,np.tan(vertical_slider_value/180 * np.pi)*polar_mean,label=f'{keyAgency.upper()} μ : total error H(m)')
+                polar_mean = (_mean+z_err)#[:,horizontal_slider_value]
+                polar_std = np.sqrt(_var+z_var)
+                polar_upp = (polar_mean + 2*polar_std)[:,horizontal_slider_value]
+                polar_low = (polar_mean - 2*polar_std)[:,horizontal_slider_value]
+                polar_mean = polar_mean[:,horizontal_slider_value]
+
+                polar_mean_h_proj = np.tan(vertical_slider_value/180 * np.pi)*polar_mean
+                polar_upp_h_proj  = np.tan(vertical_slider_value/180 * np.pi)*polar_upp
+                polar_low_h_proj  = np.tan(vertical_slider_value/180 * np.pi)*polar_low
+
+                print(polar_mean[:3] )
+                print(polar_upp [:3] )
+                print(polar_low [:3] )
+
+                print('************************')
+
+
+                # polar_mean = -(self.cossin.T @ xy_err)[:,horizontal_slider_value] + z_err[horizontal_slider_value]
+                # polar_upp =  -(self.cossin.T @ xy_upp)[:,horizontal_slider_value] + z_upp[horizontal_slider_value]
+                # polar_low =  -(self.cossin.T @ xy_low)[:,horizontal_slider_value] + z_low[horizontal_slider_value]
+
+
+                # print(self.cossin.shape,yearly_dataarray.loc[keyAgency,['north','east']].shape)
+
+                self.axes.plot(self.theta,polar_mean_h_proj,label=f'{keyAgency.upper()} μ : total error H(m)')
                 # self.axes.plot(self.theta,np.tan(vertical_slider_value/180 * np.pi)*polar_upp,c='r')
                 # self.axes.plot(self.theta,np.tan(vertical_slider_value/180 * np.pi)*polar_low,c='b')
                 # self.axes.set_yticks(np.linspace(-2,3,6))
                 # self.axes.set_rticks(np.linspace(-2,3,16))
-                self.axes.fill_between(self.theta,polar_upp,polar_low,alpha=0.2,label=f'{keyAgency.upper()} 2σ : total error H(m)')
+                self.axes.fill_between(self.theta,polar_upp_h_proj,polar_low_h_proj,alpha=0.2,label=f'{keyAgency.upper()} 2σ : total error H(m)')
                 self.axes.set_title(f'Station : {self.data_array.name},(North,East)->Total Height error(m)')
                 # self.axes.legend(bbox_to_anchor=(1.05, 0.5, 0.5, 0.5))
                 self.axes.legend(bbox_to_anchor=(-.6, 0.5, 0.5, 0.5))

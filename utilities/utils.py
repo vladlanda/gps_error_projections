@@ -243,7 +243,7 @@ def download_sp3(dates_list=[],agencies_list=['igs'],download_folder=SP3_root,lo
                 logfile.writelines("missing : {} {}\n".format(data_dict['date'],data_dict['url']))
 
 
-def download_sp3_v2(dates_list=[],agencies_list=['igs'],download_folder=SP3_root,log_filename='download_sp3.log'):
+def download_sp3_v2(dates_list=[],download_folder=SP3_root,log_filename='download_sp3.log'):
 
     base_urls = [
         'https://cddis.nasa.gov/archive/gnss/products'
