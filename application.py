@@ -442,11 +442,11 @@ class MainWindow(QMainWindow):
                 polar_upp_h_proj  = np.tan(vertical_slider_value/180 * np.pi)*polar_upp
                 polar_low_h_proj  = np.tan(vertical_slider_value/180 * np.pi)*polar_low
 
-                print(polar_mean[:3] )
-                print(polar_upp [:3] )
-                print(polar_low [:3] )
+                # print(polar_mean[:3] )
+                # print(polar_upp [:3] )
+                # print(polar_low [:3] )
 
-                print('************************')
+                # print('************************')
 
 
                 # polar_mean = -(self.cossin.T @ xy_err)[:,horizontal_slider_value] + z_err[horizontal_slider_value]
