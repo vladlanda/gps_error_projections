@@ -5,6 +5,9 @@ netCDF
 OUT
 RNX
 SP3
+DMD/downloaded_files
+DMD/products
+__pycache__
 .netrc
 *.pk
 *.log
