@@ -13,10 +13,9 @@ from atomicwrites import atomic_write
 from functools import partial
 
 import requests
-
+from typing import List
 
 from multiprocessing import Pool, cpu_count
-
 
 from requests.packages import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -26,6 +25,7 @@ ION_root = 'ION'
 CLK_root = 'CLK'
 SP3_root = 'SP3'
 OUTPUT_root = 'OUT'
+TEMP_root = 'TEMP'
 
 
 def gLab_output_to_numpy(output_file):
@@ -56,10 +56,53 @@ def date_to_rinex_name(date,station_name):
     decompressed = '{}{:03d}0.{:02d}o'.format(station_name,dt.days,rinex_year)
     return compressed,decompressed,date.year,dt.days
 
-def date_to_ionex_name(date,agency):
+def rename_ionex_to_old_format(files_path: List[str]):
+
+    REG_EXPRESSION = '\D{3}\W(\D{3})0OPS(\D{3})_\d{2}(\d{2})(\d{4})'
+    reg = re.compile(REG_EXPRESSION)
+    for path_str in files_path:
+        try:
+            agency,prod,year,day = reg.search(path_str).groups()
+            old_file_name = '{}g{}.{}i'.format(agency.lower(),day, year)
+
+            dir = os.path.dirname(path_str)
+            new_file = os.path.join(dir,old_file_name)
+            os.rename(path_str,new_file)
+        except:pass
+
+def date_to_ionex_name_v2(date,agency):
+
+
+    AGENCIES : List[str] = ['IGS','JPL','ESA','COD']
+    OLD_AGENCIES_PRIORITY : List[str] = ['igs','jpl','upc','igr','jpr','upr','ckm']
+    # RESOLUTION : List[str]  = ['02H']
+    # SOLUTION_TYPES : List[str]  = ['FIN']
+    # CAMPAINGE : List[str]  = 'OPS'
+
+    names = []
+    zip_names = []
+
+    doy = '{:03d}'.format(date_to_doy(date))
+    '''Priority #3-6'''
+    if agency.upper() in AGENCIES:
+        file_name = f'{agency.upper()}0OPSFIN_{date.year}{doy}0000_01D_02H_GIM.INX'
+        names.append(file_name)
+        zip_names.append(f'{file_name}.gz')
+        old_file_name = '{}g{:03d}0.{:02d}i'.format(agency, date_to_doy(date), date.year % 100)
+        # names.append(old_file_name)
+
+    if agency in OLD_AGENCIES_PRIORITY:
+        file_name = '{}g{:03d}0.{:02d}i'.format(agency, date_to_doy(date), date.year % 100)
+        names.append(file_name)
+        zip_names.append(f'{file_name}.Z')	
 
     dt = date - datetime.datetime(year=date.year,month=1,day=1) + datetime.timedelta(days=1)
 
+    return zip_names,names,date.year,dt.days
+
+def date_to_ionex_name(date,agency):
+
+    dt = date - datetime.datetime(year=date.year,month=1,day=1) + datetime.timedelta(days=1)
     _year = date.year%100
     day = date.day
     name = '{}g{:03d}0.{:02d}i'.format(agency,dt.days,_year)
@@ -132,11 +175,12 @@ def download_and_save_file(url,file_path):
                 buf.write(chunk)
         return buf.getvalue()
     
+    # print(file_path,os.path.isfile(file_path),url)
     if os.path.isfile(file_path): return file_path
     data_zipped = download(url)
     if data_zipped is None: 
-        
         return None
+    
 
     ephem_bytes = hatanaka.decompress(data_zipped)
     with atomic_write(file_path, mode='wb', overwrite=True) as f:
@@ -187,6 +231,8 @@ def download_clk(dates_list=[],agencies_list=['igs'],download_folder=CLK_root,lo
     # for url,file_path in zip(urls_to_download,list(files_to_download_dict.keys())):
     #     download_and_save_file(url,file_path)
 
+    os.makedirs(TEMP_root,exist_ok=True)
+    log_filename = os.path.join(TEMP_root,log_filename)
 
     for file_path,data_dict in files_to_download_dict.items():
         if not os.path.isfile(file_path):
@@ -194,6 +240,8 @@ def download_clk(dates_list=[],agencies_list=['igs'],download_folder=CLK_root,lo
                 logfile.writelines("missing : {} {}\n".format(data_dict['date'],data_dict['url']))
             
 def download_sp3(dates_list=[],agencies_list=['igs'],download_folder=SP3_root,log_filename='download_sp3.log'):
+
+
 
     base_urls = [
         'https://cddis.nasa.gov/archive/gnss/products'
@@ -236,6 +284,8 @@ def download_sp3(dates_list=[],agencies_list=['igs'],download_folder=SP3_root,lo
     # for url,file_path in zip(urls_to_download,list(files_to_download_dict.keys())):
     #     download_and_save_file(url,file_path)
 
+    os.makedirs(TEMP_root,exist_ok=True)
+    log_filename = os.path.join(TEMP_root,log_filename)
 
     for file_path,data_dict in files_to_download_dict.items():
         if not os.path.isfile(file_path):
@@ -295,6 +345,8 @@ def download_sp3_v2(dates_list=[],download_folder=SP3_root,log_filename='downloa
     # for url,file_path in zip(urls_to_download,list(files_to_download_dict.keys())):
     #     download_and_save_file(url,file_path)
 
+    os.makedirs(TEMP_root,exist_ok=True)
+    log_filename = os.path.join(TEMP_root,log_filename)
 
     for file_path,data_dict in files_to_download_dict.items():
         if not os.path.isfile(file_path):
@@ -346,6 +398,8 @@ def download_rinex(station_name,dates_list=[],download_folder=RNX_root,log_filen
     # for url,file_path in zip(urls_to_download,list(files_to_download_dict.keys())):
     #     download_and_save_file(url,file_path)
 
+    os.makedirs(TEMP_root,exist_ok=True)
+    log_filename = os.path.join(TEMP_root,log_filename)
 
     for file_path,data_dict in files_to_download_dict.items():
         if not os.path.isfile(file_path):
@@ -354,6 +408,74 @@ def download_rinex(station_name,dates_list=[],download_folder=RNX_root,log_filen
                 line = "missing : {} {}\n".format(data_dict['date'],data_dict['url'])
                 # if not line in log_lines : 
                 logfile.writelines(line)
+
+
+def download_ionex_v2(dates_list=[],agencies_list=['igs','ckm'],download_folder=ION_root,log_filename='download_ionex.log'):
+
+    base_urls = [
+        'https://cddis.nasa.gov/archive/gnss/products/ionex'
+    ]
+
+    # download_folder_zip = os.path.join(download_folder,'zip')
+
+    files_to_download_dict = {}
+    for agency in agencies_list:
+        for date in dates_list:
+
+            # _name,year,day = date_to_ionex_name(date,agency)
+            # print(date,agency)
+            zip_names,file_names,year,day = date_to_ionex_name_v2(date,agency)
+
+            # print(zip_names,file_names)
+
+            for zip_name,file_name in zip(zip_names,file_names):
+
+                if agency == 'ckm':
+                    zip_name = 'topex/{}'.format(zip_name)
+
+                # print(zip_name,file_name)
+
+                extracted_file_path = os.path.join(download_folder,file_name)
+                os.makedirs(os.path.dirname(extracted_file_path), exist_ok=True)
+
+                # if os.path.isfile(extracted_file_path):
+                    # continue
+                # else:
+                #TODO download the file
+                for base_url in base_urls:
+                    url = '{}/{}/{:03d}/{}'.format(base_url,year,day,zip_name)
+
+                    # print(extracted_file_path,url)
+                    files_to_download_dict[extracted_file_path] = {'url':url,'date':date}
+                
+    urls_to_download = [value['url'] for value in files_to_download_dict.values()]
+
+    # print(files_to_download_dict)
+    # print("There are {} CPUs on this machine ".format(cpu_count()))
+    pool = Pool(8,maxtasksperchild=10)
+    # pool = Pool(1)
+    results = pool.starmap(download_and_save_file,zip(urls_to_download,list(files_to_download_dict.keys())))
+    # print(results)
+    rename_ionex_to_old_format(results)
+    pool.close()
+    pool.join()
+
+    # for url,file_path in zip(urls_to_download,list(files_to_download_dict.keys())):
+    #     download_and_save_file(url,file_path)
+
+    os.makedirs(TEMP_root,exist_ok=True)
+    log_filename = os.path.join(TEMP_root,log_filename)
+
+    for file_path,data_dict in files_to_download_dict.items():
+        if not os.path.isfile(file_path):
+            with open(log_filename,'a') as logfile:
+                # log_lines = logfile.readlines()
+                line = "missing : {} {}\n".format(data_dict['date'],data_dict['url'])
+                # if not line in log_lines : 
+                logfile.writelines(line)
+
+
+
 
 def download_ionex(dates_list=[],agencies_list=['igs','ckm'],download_folder=ION_root,log_filename='download_ionex.log'):
 
@@ -407,6 +529,8 @@ def download_ionex(dates_list=[],agencies_list=['igs','ckm'],download_folder=ION
     # for url,file_path in zip(urls_to_download,list(files_to_download_dict.keys())):
     #     download_and_save_file(url,file_path)
 
+    os.makedirs(TEMP_root,exist_ok=True)
+    log_filename = os.path.join(TEMP_root,log_filename)
 
     for file_path,data_dict in files_to_download_dict.items():
         if not os.path.isfile(file_path):

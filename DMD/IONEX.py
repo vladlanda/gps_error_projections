@@ -960,6 +960,8 @@ def _testing_v2_():
 	date = datetime.datetime(2025,2,12)
 
 	ionex = IONEXv2(save_directory=os.path.join(os.path.abspath('.'),'fordmduse'),n_prior_days=4)
+	r = ionex.download_ionex_by_date_list([date])
+	print(r)
 
 	# ionex.download_ionex(date)
 	# ionex.download_c1p(date)
@@ -967,10 +969,12 @@ def _testing_v2_():
 	# print(ionex._get_prioritized_list_of_products(date))
 
 
-	ionex.predict_dmd_map(date)
+	# ionex.predict_dmd_map(date)
 
 
 if __name__ == '__main__':
+
+
 
 	_testing_v2_()
 	# _testings_()

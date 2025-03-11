@@ -7,6 +7,7 @@ RNX
 SP3
 DMD/downloaded_files
 DMD/products
+TEMP
 __pycache__
 .netrc
 *.pk
